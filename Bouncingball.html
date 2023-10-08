@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bouncing Ball Game</title>
+    <style>
+      :root {
+        --ball-color: #ff5733;
+        --bar-color: #0095dd;
+        --background-color: #ccc;
+      }
+
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        background-color: var(--background-color); /* Sử dụng biến màu */
+      }
+
+      canvas {
+        border: 2px solid var(--ball-color);
+        background-color: #f7f7f7; /* Màu nền nhạt hơn */
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      }
+
+      .ball {
+        background-color: var(--ball-color);
+        border-radius: 50%;
+      }
+
+      .bar {
+        background-color: var(--bar-color);
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+    <script>
+      class GameBoard {
+        constructor(canvas) {
+          this.canvas = canvas;
+          this.ctx = canvas.getContext("2d");
+          this.width = canvas.width;
+          this.height = canvas.height;
+        }
+
+        clearCanvas() {
+          this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        }
+      }
+
+      class Ball {
+        constructor(gameBoard, bar) {
+          this.gameBoard = gameBoard;
+          this.bar = bar;
+          this.x = gameBoard.width / 2;
+          this.y = gameBoard.height - 30;
+          this.radius = 15;
+          this.speed = 5;
+          this.dx = 2;
+          this.dy = -2;
+          this.gradientColors = [
+            getRandomColor(),
+            getRandomColor(),
+            getRandomColor(),
+            getRandomColor(),
+          ];
+        }
+
+        draw() {
+          const gradient = this.gameBoard.ctx.createLinearGradient(
+            this.x - this.radius,
+            this.y - this.radius,
+            this.x + this.radius,
+            this.y + this.radius
+          );
+          for (let i = 0; i < this.gradientColors.length; i++) {
+            gradient.addColorStop(
+              i / (this.gradientColors.length - 1),
+              this.gradientColors[i]
+            );
+          }
+          this.gameBoard.ctx.beginPath();
+          this.gameBoard.ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+          this.gameBoard.ctx.fillStyle = gradient; // Sử dụng biến màu đã định nghĩa
+          this.gameBoard.ctx.fill();
+          this.gameBoard.ctx.closePath();
+        }
+
+        move() {
+          this.x += this.dx;
+          this.y += this.dy;
+
+          // Bounce off the walls
+          if (
+            this.x + this.radius > this.gameBoard.width ||
+            this.x - this.radius < 0
+          ) {
+            this.dx = -this.dx;
+          }
+
+          if (this.y - this.radius < 0) {
+            this.dy = -this.dy;
+          } else if (this.y + this.radius > this.gameBoard.height) {
+            // Ball hits the bottom, game over
+            alert("Game Over");
+            document.location.reload();
+          }
+
+          // Bounce off the bar
+          if (
+            this.x + this.radius > this.bar.x &&
+            this.x - this.radius < this.bar.x + this.bar.width &&
+            this.y + this.radius > this.gameBoard.height - this.bar.height - 20
+          ) {
+            const collisionPoint = this.x - (this.bar.x + this.bar.width / 2);
+            const normalizedCollisionPoint =
+              collisionPoint / (this.bar.width / 2);
+            const bounceAngle = normalizedCollisionPoint * (Math.PI / 3);
+            this.dx = this.speed * Math.sin(bounceAngle);
+            this.dy = -this.speed * Math.cos(bounceAngle);
+          }
+        }
+      }
+
+      class Bar {
+        constructor(gameBoard) {
+          this.gameBoard = gameBoard;
+          this.width = 120;
+          this.height = 11;
+          this.x = (gameBoard.width - 100) / 2;
+          this.speed = 5;
+          this.isMovingLeft = false;
+          this.isMovingRight = false;
+          this.gradientColors = [
+            getRandomColor(),
+            getRandomColor(),
+            getRandomColor(),
+            getRandomColor(),
+          ];
+        }
+        draw() {
+          const gradient = this.gameBoard.ctx.createLinearGradient(
+            this.x,
+            this.gameBoard.height - this.height,
+            this.x + this.width,
+            this.gameBoard.height
+          );
+          for (let i = 0; i < this.gradientColors.length; i++) {
+            gradient.addColorStop(
+              i / (this.gradientColors.length - 1),
+              this.gradientColors[i]
+            );
+          }
+          this.gameBoard.ctx.beginPath();
+          this.gameBoard.ctx.rect(
+            this.x,
+            this.gameBoard.height - this.height - 20,
+            this.width,
+            this.height
+          );
+          this.gameBoard.ctx.fillStyle = gradient; // Sử dụng biến màu đã định nghĩa
+          this.gameBoard.ctx.fill();
+          this.gameBoard.ctx.closePath();
+        }
+
+        moveLeft() {
+          if (this.x > 0) {
+            this.x -= this.speed;
+          }
+        }
+
+        moveRight() {
+          if (this.x + this.width < this.gameBoard.width) {
+            this.x += this.speed;
+          }
+        }
+
+        stopMoving() {
+          this.isMovingLeft = false;
+          this.isMovingRight = false;
+        }
+      }
+
+      let gameOver = false; // Biến để kiểm tra trạng thái game over
+
+      // Tạo đối tượng GameBoard
+      const canvas = document.getElementById("gameCanvas");
+      const gameBoard = new GameBoard(canvas);
+
+      // Tạo các đối tượng Ball và Bar và truyền gameBoard vào chúng
+      const bar = new Bar(gameBoard);
+      const ball = new Ball(gameBoard, bar);
+
+      // Các phần còn lại của trò chơi có thể được sắp xếp bên ngoài để quản lý dễ dàng hơn
+
+      // Lắng nghe sự kiện nhấn phím
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowLeft") {
+          bar.isMovingLeft = true;
+        }
+        if (e.key === "ArrowRight") {
+          bar.isMovingRight = true;
+        }
+      });
+
+      // Lắng nghe sự kiện thả phím
+      document.addEventListener("keyup", (e) => {
+        if (e.key === "ArrowLeft") {
+          bar.isMovingLeft = false;
+        }
+        if (e.key === "ArrowRight") {
+          bar.isMovingRight = false;
+        }
+      });
+      function getRandomColor() {
+        const letters = "0123456789ABCDEF";
+        let color = "#";
+        for (let i = 0; i < 6; i++) {
+          color += letters[Math.floor(Math.random() * 16)];
+        }
+        return color;
+      }
+
+      // Hàm vòng lặp game
+      function gameLoop() {
+        if (!gameOver) {
+          gameBoard.clearCanvas(); // Xóa canvas
+          bar.draw(); // Vẽ thanh bar
+          ball.draw(); // Vẽ quả bóng
+          ball.move(); // Di chuyển quả bóng
+
+          // Di chuyển thanh bar dựa vào các sự kiện
+          if (bar.isMovingLeft) {
+            bar.moveLeft();
+          }
+          if (bar.isMovingRight) {
+            bar.moveRight();
+          }
+          if (ball.y + ball.radius > gameBoard.height) {
+            gameOver = true;
+            return;
+          }
+          requestAnimationFrame(gameLoop);
+        } else {
+          alert("Game Over");
+          document.location.reload();
+        }
+      }
+
+      gameLoop();
+    </script>
+  </body>
+</html>
